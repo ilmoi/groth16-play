@@ -579,58 +579,11 @@ print("-"*10)
 print("Toxic waste:")
 alpha = FP(2)
 beta = FP(3)
-gamma = FP(4)
-delta = FP(5)
 tau = FP(20)
 
-print(f"α = {alpha}")
-print(f"β = {beta}")
-print(f"γ = {gamma}")
-print(f"δ = {delta}")
-print(f"τ = {tau}")
-
-def split_poly(poly):
-    coef = [int(c) for c in poly.coefficients()]
-    p1 = coef[-2:]
-    p2 = coef[:-2] + [0] * 2
-
-    return galois.Poly(p1, field=FP), galois.Poly(p2, field=FP)
-
-u = U(tau)
-v = V(tau)
-ht = H(tau)*T_tau
-
-U1, U2 = split_poly(U)
-V1, V2 = split_poly(V)
-W1, W2 = split_poly(W)
-
-w1 = W1(tau)
-w2 = W2(tau)
-
-u1 = U1(tau)
-u2 = U2(tau)
-
-v1 = V1(tau)
-v2 = V2(tau)
-
-c = (beta * u2 + alpha * v2 + w2) * delta**-1 + ht * delta**-1
-k = (beta * u1 + alpha * v1 + w1) * gamma**-1
-
-a = u + alpha
-b = v + beta
-
-assert a * b == alpha * beta + k * gamma + c * delta # should be equal.
-
-# ----------------- compute K (public)
-
-print("Setup phase")
-print("-"*10)
-print("Toxic waste:")
-alpha = FP(2)
-beta = FP(3)
+# these are new
 gamma = FP(4)
 delta = FP(5)
-tau = FP(20)
 
 print(f"α = {alpha}")
 print(f"β = {beta}")
@@ -669,14 +622,17 @@ u2 = U2(tau)
 v1 = V1(tau)
 v2 = V2(tau)
 
+# involve delta and gamma here
 c = (beta * u2 + alpha * v2 + w2) * delta**-1 + ht * delta**-1
 k = (beta * u1 + alpha * v1 + w1) * gamma**-1
 
 a = u + alpha
 b = v + beta
 
+# balance it out here
 assert a * b == alpha * beta + k * gamma + c * delta
 
+# prepare points on the EC
 alpha_G1 = multiply(G1, int(alpha))
 beta_G2 = multiply(G2, int(beta))
 gamma_G2 = multiply(G2, int(gamma))
@@ -702,9 +658,11 @@ print(f"[τT(τ)/δ]G1 = {[normalize(point) for point in target_G1]}")
 
 # ----------------- compute K (public)
 
+# split into public and private
 w_pub = w[:2]
 w_priv = w[2:]
 
+# calc K gamma and K delta
 K_gamma, K_delta = [k/gamma for k in K_eval[:2]], [k/delta for k in K_eval[2:]]
 
 print(f"K/γ = {[int(k) for k in K_gamma]}")
@@ -814,6 +772,7 @@ s = FP(13)
 print(f"r = {r}")
 print(f"s = {s}")
 
+# exactly the same as before
 def split_poly(poly):
     coef = [int(c) for c in poly.coefficients()]
     p1 = coef[-2:]
@@ -846,6 +805,7 @@ v2 = V2(tau)
 a = u + alpha + r * delta
 b = v + beta + s * delta
 
+# incorporate r and s here
 c = ((beta * u2 + alpha * v2 + w2) * delta**-1 + ht * delta**-1) + s * a + r * b - r * s * delta
 k = (beta * u1 + alpha * v1 + w1) * gamma**-1
 
