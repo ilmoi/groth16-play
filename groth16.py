@@ -500,7 +500,7 @@ k = (beta * u1 + alpha * v1 + w1)
 
 assert (u + alpha) * (v + beta) == alpha * beta + k + c # should be equal
 
-# ---------------------- verifier computes k
+# ---------------------- verifier computes K (public)
 
 k_pub_G1, k_priv_G1 = k_G1[:2], k_G1[2:]
 pub_input, priv_input = w[:2], w[2:]
@@ -511,7 +511,7 @@ print(f"[k_priv]G1 = {[normalize(point) for point in k_priv_G1]}")
 print(f"pub_input = {pub_input}")
 print(f"priv_input = {priv_input}")
 
-# ---------------------- prover computes private part
+# ---------------------- prover computes C (private)
 
 K_priv_G1_terms = [multiply(point, int(scaler)) for point, scaler in zip(k_priv_G1, priv_input)]
 K_priv_G1 = K_priv_G1_terms[0]
@@ -566,3 +566,362 @@ with open("VerifierPublicInput.sol.template", "r") as f:
 
 with open("VerifierPublicInput.sol", "w") as f:
     f.write(output)
+    
+# 2 more things to do:
+
+# ---------------------------------------- make sure prover can't cheat
+
+# make sure that the prover can't cheat by sending someone else's proof
+# trusted party sends 2 more params - gamma and delta, and those are incorporated into the proof
+
+print("Setup phase")
+print("-"*10)
+print("Toxic waste:")
+alpha = FP(2)
+beta = FP(3)
+gamma = FP(4)
+delta = FP(5)
+tau = FP(20)
+
+print(f"α = {alpha}")
+print(f"β = {beta}")
+print(f"γ = {gamma}")
+print(f"δ = {delta}")
+print(f"τ = {tau}")
+
+def split_poly(poly):
+    coef = [int(c) for c in poly.coefficients()]
+    p1 = coef[-2:]
+    p2 = coef[:-2] + [0] * 2
+
+    return galois.Poly(p1, field=FP), galois.Poly(p2, field=FP)
+
+u = U(tau)
+v = V(tau)
+ht = H(tau)*T_tau
+
+U1, U2 = split_poly(U)
+V1, V2 = split_poly(V)
+W1, W2 = split_poly(W)
+
+w1 = W1(tau)
+w2 = W2(tau)
+
+u1 = U1(tau)
+u2 = U2(tau)
+
+v1 = V1(tau)
+v2 = V2(tau)
+
+c = (beta * u2 + alpha * v2 + w2) * delta**-1 + ht * delta**-1
+k = (beta * u1 + alpha * v1 + w1) * gamma**-1
+
+a = u + alpha
+b = v + beta
+
+assert a * b == alpha * beta + k * gamma + c * delta # should be equal.
+
+# ----------------- compute K (public)
+
+print("Setup phase")
+print("-"*10)
+print("Toxic waste:")
+alpha = FP(2)
+beta = FP(3)
+gamma = FP(4)
+delta = FP(5)
+tau = FP(20)
+
+print(f"α = {alpha}")
+print(f"β = {beta}")
+print(f"γ = {gamma}")
+print(f"δ = {delta}")
+print(f"τ = {tau}")
+
+# ----------------- setup phase
+
+def split_poly(poly):
+    coef = [int(c) for c in poly.coefficients()]
+    p1 = coef[-2:]
+    p2 = coef[:-2] + [0] * 2
+
+    return galois.Poly(p1, field=FP), galois.Poly(p2, field=FP)
+
+# U, V, W - witness already computed
+
+u = U(tau)
+v = V(tau)
+_w = W(tau)
+ht = H(tau)*T_tau
+
+assert u * v == _w + ht
+
+U1, U2 = split_poly(U)
+V1, V2 = split_poly(V)
+W1, W2 = split_poly(W)
+
+w1 = W1(tau)
+w2 = W2(tau)
+
+u1 = U1(tau)
+u2 = U2(tau)
+
+v1 = V1(tau)
+v2 = V2(tau)
+
+c = (beta * u2 + alpha * v2 + w2) * delta**-1 + ht * delta**-1
+k = (beta * u1 + alpha * v1 + w1) * gamma**-1
+
+a = u + alpha
+b = v + beta
+
+assert a * b == alpha * beta + k * gamma + c * delta
+
+alpha_G1 = multiply(G1, int(alpha))
+beta_G2 = multiply(G2, int(beta))
+gamma_G2 = multiply(G2, int(gamma))
+delta_G2 = multiply(G2, int(delta))
+
+tau_G1 = [multiply(G1, int(tau**i)) for i in range(0, T.degree)]
+tau_G2 = [multiply(G2, int(tau**i)) for i in range(0, T.degree)]
+
+powers_tauTtau_div_delta = [(tau**i * T_tau) / delta for i in range(0, T.degree - 1)]
+target_G1 = [multiply(G1, int(pTd)) for pTd in powers_tauTtau_div_delta]
+
+assert len(target_G1) == len(H.coefficients()), f"target_G1 length mismatch! {len(target_G1)} != {len(H.coefficients())}"
+
+print("Trusted setup:")
+print("-"*10)
+print(f"[α]G1 = {normalize(alpha_G1)}")
+print(f"[β]G2 = {normalize(beta_G2)}")
+print(f"[γ]G2 = {normalize(gamma_G2)}")
+print(f"[δ]G2 = {normalize(delta_G2)}")
+print(f"[τ]G1 = {[normalize(point) for point in tau_G1]}")
+print(f"[τ]G2 = {[normalize(point) for point in tau_G2]}")
+print(f"[τT(τ)/δ]G1 = {[normalize(point) for point in target_G1]}")
+
+# ----------------- compute K (public)
+
+w_pub = w[:2]
+w_priv = w[2:]
+
+K_gamma, K_delta = [k/gamma for k in K_eval[:2]], [k/delta for k in K_eval[2:]]
+
+print(f"K/γ = {[int(k) for k in K_gamma]}")
+print(f"K/δ = {[int(k) for k in K_delta]}")
+
+K_gamma_G1 = [multiply(G1, int(k)) for k in K_gamma]
+K_delta_G1 = [multiply(G1, int(k)) for k in K_delta]
+
+print(f"[K/γ]G1 = {[normalize(point) for point in K_gamma_G1]}")
+print(f"[K/δ]G1 = {[normalize(point) for point in K_delta_G1]}")
+
+# [K/γ*w]G1
+Kw_gamma_G1_terms = [multiply(point, int(scaler)) for point, scaler in zip(K_gamma_G1, w_pub)]
+Kw_gamma_G1 = Kw_gamma_G1_terms[0]
+for i in range(1, len(Kw_gamma_G1_terms)):
+    Kw_gamma_G1 = add(Kw_gamma_G1, Kw_gamma_G1_terms[i])
+
+print(f"[K/γ*w]G1 = {normalize(Kw_gamma_G1)}")
+
+# [K/δ*w]G1
+Kw_delta_G1_terms = [multiply(point, int(scaler)) for point, scaler in zip(K_delta_G1, w_priv)]
+Kw_delta_G1 = Kw_delta_G1_terms[0]
+for i in range(1, len(Kw_delta_G1_terms)):
+    Kw_delta_G1 = add(Kw_delta_G1, Kw_delta_G1_terms[i])
+
+print(f"[K/δ*w]G1 = {normalize(Kw_delta_G1)}")
+
+# ----------------- compute HT
+
+HT_G1 = evaluate_poly(H, target_G1)
+print(f"\n[τT(τ)/δ]G1 = {normalize(HT_G1)}")
+
+assert pairing(G2, multiply(G1, int(ht/delta))) == pairing(G2, HT_G1)
+
+# ----------------- compute C (private)
+
+C_G1 = add(Kw_delta_G1, HT_G1)
+
+# ----------------- verify proof
+
+K_G1 = Kw_gamma_G1
+
+A_G1 = evaluate_poly(U, tau_G1)
+A_G1 = add(A_G1, alpha_G1)
+B_G2 = evaluate_poly(V, tau_G2)
+B_G2 = add(B_G2, beta_G2)
+
+k1 = normalize(K_gamma_G1[0])
+k2 = normalize(K_gamma_G1[1])
+
+with open("VerifierPublicInputGammaDelta.sol.template", "r") as f:
+    template = Template(f.read())
+    variables = {
+        "aG1_x": normalize(A_G1)[0],
+        "aG1_y": normalize(A_G1)[1],
+        "bG2_x1": normalize(B_G2)[0].coeffs[0],
+        "bG2_x2": normalize(B_G2)[0].coeffs[1],
+        "bG2_y1": normalize(B_G2)[1].coeffs[0],
+        "bG2_y2": normalize(B_G2)[1].coeffs[1],
+        "cG1_x": normalize(C_G1)[0],
+        "cG1_y": normalize(C_G1)[1],
+        "alphaG1_x": normalize(alpha_G1)[0],
+        "alphaG1_y": normalize(alpha_G1)[1],
+        "betaG2_x1": normalize(beta_G2)[0].coeffs[0],
+        "betaG2_x2": normalize(beta_G2)[0].coeffs[1],
+        "betaG2_y1": normalize(beta_G2)[1].coeffs[0],
+        "betaG2_y2": normalize(beta_G2)[1].coeffs[1],
+        "k1G1_x": k1[0],
+        "k1G1_y": k1[1],
+        "k2G1_x": k2[0],
+        "k2G1_y": k2[1],
+        "one": pub_input[0],
+        "out": pub_input[1],
+        "gammaG2_x1": normalize(gamma_G2)[0].coeffs[0],
+        "gammaG2_x2": normalize(gamma_G2)[0].coeffs[1],
+        "gammaG2_y1": normalize(gamma_G2)[1].coeffs[0],
+        "gammaG2_y2": normalize(gamma_G2)[1].coeffs[1],
+        "deltaG2_x1": normalize(delta_G2)[0].coeffs[0],
+        "deltaG2_x2": normalize(delta_G2)[0].coeffs[1],
+        "deltaG2_y1": normalize(delta_G2)[1].coeffs[0],
+        "deltaG2_y2": normalize(delta_G2)[1].coeffs[1],
+    }
+    output = template.substitute(variables)
+
+with open("VerifierPublicInputGammaDelta.sol", "w") as f:
+    f.write(output)
+
+# ---------------------------------------- make sure verifier can't cheat
+
+# make sure that the verifier can't cheat by re-using someone else's proof
+# introduce randomness so that 2 of the same proofs actually look different
+
+# ----------------- setup phase
+
+print("Additional Trusted setup:")
+print("-"*10)
+delta_G1 = multiply(G1, int(delta))
+gamma_G1 = multiply(G1, int(gamma))
+
+print(f"[γ]G1 = {normalize(gamma_G1)}")
+print(f"[δ]G1 = {normalize(delta_G1)}")
+
+print("Prover picks random r, s")
+r = FP(12)
+s = FP(13)
+
+print(f"r = {r}")
+print(f"s = {s}")
+
+def split_poly(poly):
+    coef = [int(c) for c in poly.coefficients()]
+    p1 = coef[-2:]
+    p2 = coef[:-2] + [0] * 2
+
+    return galois.Poly(p1, field=FP), galois.Poly(p2, field=FP)
+
+# U, V, W - witness already computed
+
+u = U(tau)
+v = V(tau)
+_w = W(tau)
+ht = H(tau)*T_tau
+
+assert u * v == _w + ht
+
+U1, U2 = split_poly(U)
+V1, V2 = split_poly(V)
+W1, W2 = split_poly(W)
+
+w1 = W1(tau)
+w2 = W2(tau)
+
+u1 = U1(tau)
+u2 = U2(tau)
+
+v1 = V1(tau)
+v2 = V2(tau)
+
+a = u + alpha + r * delta
+b = v + beta + s * delta
+
+c = ((beta * u2 + alpha * v2 + w2) * delta**-1 + ht * delta**-1) + s * a + r * b - r * s * delta
+k = (beta * u1 + alpha * v1 + w1) * gamma**-1
+
+assert a * b == alpha * beta + k * gamma + c * delta
+
+# ----------------- prover recompute A B C
+
+r_delta_G1 = multiply(delta_G1, int(r))
+s_delta_G1 = multiply(delta_G1, int(s))
+s_delta_G2 = multiply(delta_G2, int(s))
+
+A_G1 = evaluate_poly(U, tau_G1)
+A_G1 = add(A_G1, alpha_G1)
+A_G1 = add(A_G1, r_delta_G1)
+
+B_G2 = evaluate_poly(V, tau_G2)
+B_G2 = add(B_G2, beta_G2)
+B_G2 = add(B_G2, s_delta_G2)
+
+B_G1 = evaluate_poly(V, tau_G1)
+B_G1 = add(B_G1, beta_G1)
+B_G1 = add(B_G1, s_delta_G1)
+
+As_G1 = multiply(A_G1, int(s))
+Br_G1 = multiply(B_G1, int(r))
+rs_delta_G1 = multiply(delta_G1, int(-r*s))
+
+C_G1 = add(Kw_delta_G1, HT_G1)
+C_G1 = add(C_G1, As_G1)
+C_G1 = add(C_G1, Br_G1)
+C_G1 = add(C_G1, rs_delta_G1)
+
+print(f"[A]G1 = {normalize(A_G1)}")
+print(f"[B]G2 = {normalize(B_G2)}")
+print(f"[C]G1 = {normalize(C_G1)}")
+
+# ----------------- verify proof
+
+k1 = normalize(K_gamma_G1[0])
+k2 = normalize(K_gamma_G1[1])
+
+with open("VerifierPublicInputGammaDelta.sol.template", "r") as f:
+    template = Template(f.read())
+    variables = {
+        "aG1_x": normalize(A_G1)[0],
+        "aG1_y": normalize(A_G1)[1],
+        "bG2_x1": normalize(B_G2)[0].coeffs[0],
+        "bG2_x2": normalize(B_G2)[0].coeffs[1],
+        "bG2_y1": normalize(B_G2)[1].coeffs[0],
+        "bG2_y2": normalize(B_G2)[1].coeffs[1],
+        "cG1_x": normalize(C_G1)[0],
+        "cG1_y": normalize(C_G1)[1],
+        "alphaG1_x": normalize(alpha_G1)[0],
+        "alphaG1_y": normalize(alpha_G1)[1],
+        "betaG2_x1": normalize(beta_G2)[0].coeffs[0],
+        "betaG2_x2": normalize(beta_G2)[0].coeffs[1],
+        "betaG2_y1": normalize(beta_G2)[1].coeffs[0],
+        "betaG2_y2": normalize(beta_G2)[1].coeffs[1],
+        "k1G1_x": k1[0],
+        "k1G1_y": k1[1],
+        "k2G1_x": k2[0],
+        "k2G1_y": k2[1],
+        "one": pub_input[0],
+        "out": pub_input[1],
+        "gammaG2_x1": normalize(gamma_G2)[0].coeffs[0],
+        "gammaG2_x2": normalize(gamma_G2)[0].coeffs[1],
+        "gammaG2_y1": normalize(gamma_G2)[1].coeffs[0],
+        "gammaG2_y2": normalize(gamma_G2)[1].coeffs[1],
+        "deltaG2_x1": normalize(delta_G2)[0].coeffs[0],
+        "deltaG2_x2": normalize(delta_G2)[0].coeffs[1],
+        "deltaG2_y1": normalize(delta_G2)[1].coeffs[0],
+        "deltaG2_y2": normalize(delta_G2)[1].coeffs[1],
+    }
+    output = template.substitute(variables)
+
+with open("VerifierPublicInputGammaDeltaRS.sol", "w") as f:
+    f.write(output)
+    
+print("Done!")
